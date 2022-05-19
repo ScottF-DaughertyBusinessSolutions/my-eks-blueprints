@@ -1,9 +1,9 @@
-// lib/pipeline.ts
+// lib/pipeline-stack.ts
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as blueprints from '@aws-quickstart/eks-blueprints';
 
-import { TeamPlatform, TeamApplication } from '../teams'; // HERE WE IMPORT TEAMS
+import { TeamPlatform, TeamApplication } from '../teams'; 
 
 export default class PipelineConstruct extends Construct {
   constructor(scope: Construct, id: string, props?: cdk.StackProps){
@@ -11,17 +11,17 @@ export default class PipelineConstruct extends Construct {
 
     const account = props?.env?.account!;
     const region = props?.env?.region!;
-
+    
     const blueprint = blueprints.EksBlueprint.builder()
     .account(account)
     .region(region)
     .addOns(
-      new blueprints.ClusterAutoScalerAddOn, // Cluster Autoscaler addon goes here
-      new blueprints.KubeviousAddOn,
-    )
+      new blueprints.ClusterAutoScalerAddOn,
+      new blueprints.KubeviousAddOn(), 
+    ) 
     .teams(new TeamPlatform(account), new TeamApplication('burnham',account));
-  
-     // HERE WE ADD THE ARGOCD APP OF APPS REPO INFORMATION
+
+    // HERE WE ADD THE ARGOCD APP OF APPS REPO INFORMATION
     const repoUrl = 'https://github.com/aws-samples/eks-blueprints-workloads.git';
 
     const bootstrapRepo : blueprints.ApplicationRepository = {
@@ -51,21 +51,20 @@ export default class PipelineConstruct extends Construct {
   
     blueprints.CodePipelineStack.builder()
       .name("eks-blueprints-workshop-pipeline")
-      .owner("ScottF-DaughertyBusinessSolutions")
+      .owner("your-github-username")
       .repository({
-          repoUrl: 'my-eks-blueprints',
+          repoUrl: 'your-repo-name',
           credentialsSecretName: 'github-token',
           targetRevision: 'main'
       })
-      // WE ADD THE STAGES IN WAVE FROM THE PREVIOUS CODE
       .wave({
-        id: "envs",
+        id: 'envs',
         stages: [
-          { id: "dev", stackBuilder: blueprint.clone('us-west-2')},
-          { id: "test", stackBuilder: blueprint.clone('us-east-2')},
-          { id: "prod", stackBuilder: blueprint.clone('us-east-1')}
+          { id: "dev", stackBuilder: blueprint.clone('us-west-2').addOns(devBootstrapArgo)}, // HERE WE ADD OUR NEW ADDON WITH THE CONFIGURED ARGO CONFIGURATIONS
+          { id: "test", stackBuilder: blueprint.clone('us-east-2').addOns(testBootstrapArgo)}, // HERE WE ADD OUR NEW ADDON WITH THE CONFIGURED ARGO CONFIGURATIONS
+          { id: "prod", stackBuilder: blueprint.clone('us-east-1').addOns(prodBootstrapArgo)}, // HERE WE ADD OUR NEW ADDON WITH THE CONFIGURED ARGO CONFIGURATIONS
         ]
-      })
+      })  
       .build(scope, id+'-stack', props);
   }
 }
