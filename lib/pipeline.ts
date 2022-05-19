@@ -21,6 +21,34 @@ export default class PipelineConstruct extends Construct {
     )
     .teams(new TeamPlatform(account), new TeamApplication('burnham',account));
   
+     // HERE WE ADD THE ARGOCD APP OF APPS REPO INFORMATION
+    const repoUrl = 'https://github.com/aws-samples/eks-blueprints-workloads.git';
+
+    const bootstrapRepo : blueprints.ApplicationRepository = {
+        repoUrl,
+        targetRevision: 'workshop',
+    }
+
+    // HERE WE GENERATE THE ADDON CONFIGURATIONS
+    const devBootstrapArgo = new blueprints.ArgoCDAddOn({
+        bootstrapRepo: {
+            ...bootstrapRepo,
+            path: 'envs/dev'
+        },
+    });
+    const testBootstrapArgo = new blueprints.ArgoCDAddOn({
+        bootstrapRepo: {
+            ...bootstrapRepo,
+            path: 'envs/test'
+        },
+    });
+    const prodBootstrapArgo = new blueprints.ArgoCDAddOn({
+        bootstrapRepo: {
+            ...bootstrapRepo,
+            path: 'envs/prod'
+        },
+    });
+  
     blueprints.CodePipelineStack.builder()
       .name("eks-blueprints-workshop-pipeline")
       .owner("ScottF-DaughertyBusinessSolutions")
